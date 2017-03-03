@@ -1,0 +1,23 @@
+{% set title = 'Home' %}
+{% extends 'layout.html' %}
+{% block content %}
+<br/>
+<p>Generador de servicios factory de angular</p>
+<br/>
+<div class="row">
+  <div class="col-md-offset-4 col-md-4">
+    <label>Nombre Servicio REST</label>
+     <input type="text" class="form-control" ng-model="java.restname">
+  </div>
+</div>
+<br/>
+
+
+<div class="row">
+  <div class="col-md-10">
+    <!--java-code restname="java.restname" services="javaServices"></java-code-->
+
+    <!--code ng-bind="java"></code-->
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% set title = 'Home' %}
+{% extends 'layout.html' %}
+{% block content %}
+<!--h4>Servicios REST Java</h4>
+<p>Servicios implementados en el BackEnd JAVA</p-->
+<br/>
+<p>Servicios implementados en el BackEnd JAVA</p>
+<br/>
+<div class="row">
+  <div class="col-md-offset-4 col-md-4">
+    <label>Nombre Servicio REST</label>
+     <input type="text" class="form-control" ng-model="java.restname">
+  </div>
+</div>
+<br/>
+
+
+<div class="row">
+  <div class="col-md-10">
+    <java-code restname="java.restname" services="services"></java-code>
+
+    <!--code ng-bind="java"></code-->
+  </div>
+</div>
+
+
+{% endblock %}
