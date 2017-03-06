@@ -71,7 +71,7 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
           scope.$watch('restname', function(newValue,oldValue) {
                     javalines=[];
                     for(var i in scope.services){
-                        javalines.push(buildServices.buildJavaService(newValue,scope.services[i].url,scope.services[i].constante,scope.services[i].sp,scope.services[i].params))
+                        javalines.push(buildServices.buildJavaService(newValue,scope.services[i].url,scope.services[i].constante,scope.services[i].sp,scope.services[i].params,scope.services[i].operacion))
                       }
                     scope.java =(scope.services!=undefined)?buildJavaCode(javalines,newValue):'';
                });
@@ -79,7 +79,7 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
           scope.$watch('services.length', function(newValue,oldValue) {
                      javalines=[];
                      for(var i in scope.services){
-                       javalines.push(buildServices.buildJavaService(scope.restname,scope.services[i].url,scope.services[i].constante,scope.services[i].sp,scope.services[i].params))
+                       javalines.push(buildServices.buildJavaService(scope.restname,scope.services[i].url,scope.services[i].constante,scope.services[i].sp,scope.services[i].params,,scope.services[i].operacion))
                      }
                     scope.java =(scope.services!=undefined)?buildJavaCode(javalines,scope.restname):'';
               });
@@ -316,16 +316,24 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
       return strConvertion;
   }
 
-  function buildJavaService(restname,url,SPConstant,sp,params){
+  // <option value="t">Consulta tabla</option>
+  // <option value="s">Consulta simple</option>
+  // <option value="i">Inserción/actualización</option>
+
+
+  function buildJavaService(restname,url,SPConstant,sp,params,type){
     var methodName=getMethodName(url);
 
     var queryRest='@RequestMapping(value="'+url+'",method=RequestMethod.POST)'+
 						 '\r\npublic ResponseEntity<ParentVO> '+methodName+'(@Valid @RequestBody PldParams params) {'+
 						 '\r\n	//SP: '+sp+
 						 '\r\n	LOG.info("@Rest :: '+restname+' :: '+methodName+' :: {}",params);'+
-						 '\r\n	ParentVO result=new ParentVO();'+
-						 '\r\n	TableContainer container=contextUser.getCurrentContainer();'+
-						 '\r\n	try{';
+						 '\r\n	ParentVO result=new ParentVO();';
+
+      if(type=='t' || type=='s'  )//el table container solo se usa para consultas
+        queryRest+='\r\nTableContainer container=contextUser.getCurrentContainer();';
+
+			queryRest+='\r\n	try{';
 
     if(isDatePresent(params))
         queryRest+='\r\nSimpleDateFormat fd = new SimpleDateFormat("yyyy-MM-dd");\r\n';
@@ -337,10 +345,34 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
     for(var i in params){
       queryRest+='\r\n\t\t'+addSqlParameterSource(params[i]);
     }
-    queryRest+=';\r\n\r\n\tTableVO table=storedProcedure.queryForTableVO( ISentenciasSQL.'+SPConstant+', inParamMap);'+
-                '\r\n\tcontainer.loadDataToContainer(params.getKeyTable(), table);'+
-                '\r\n\tresult.setState(table.getState());'+
-                '\r\n\tresult.setMessage(table.getMessage());';
+    switch (type) {
+      case 's'://simple
+        queryRest+=';\r\n\r\n\tTableVO table=storedProcedure.queryForTableVO( ISentenciasSQL.'+SPConstant+', inParamMap);'+
+                  '\r\n\tcontainer.loadDataToContainer(params.getKeyTable(), table);'+
+                  '\r\n\tresult=table;//aplicamos herencia para desplegar el resultado';
+        break;
+      case 'i'//insert,delete,update
+        queryRest+=';\r\n\r\n\tresult=storedProcedure.queryforUpdateInsertDelete( ISentenciasSQL.'+SPConstant+', inParamMap);'+
+                   '\r\n\tresult.getState().setMessage("Inserción exitosa");//cambiar leyenda en esta seccion si se desea otro mensaje'+
+                   '\r\n\tresult.getState().setShow(true);//habilita la bandera para mostrar mensajes';
+          break;
+      case 'u'://insert,delete,update
+        queryRest+=';\r\n\r\n\tresult=storedProcedure.queryforUpdateInsertDelete( ISentenciasSQL.'+SPConstant+', inParamMap);'+
+                   '\r\n\tresult.getState().setMessage("Actualización exitosa");//cambiar leyenda en esta seccion si se desea otro mensaje'+
+                   '\r\n\tresult.getState().setShow(true);//habilita la bandera para mostrar mensajes';
+        break;
+        case 'd'://insert,delete,update
+          queryRest+=';\r\n\r\n\tresult=storedProcedure.queryforUpdateInsertDelete( ISentenciasSQL.'+SPConstant+', inParamMap);'+
+                     '\r\n\tresult.getState().setMessage("Borrado exitoso");//cambiar leyenda en esta seccion si se desea otro mensaje'+
+                     '\r\n\tresult.getState().setShow(true);//habilita la bandera para mostrar mensajes';
+          break;
+      default://case t table
+      queryRest+=';\r\n\r\n\tTableVO table=storedProcedure.queryForTableVO( ISentenciasSQL.'+SPConstant+', inParamMap);'+
+                  '\r\n\tcontainer.loadDataToContainer(params.getKeyTable(), table);'+
+                  '\r\n\tresult.setState(table.getState());'+
+                  '\r\n\tresult.setMessage(table.getMessage());';
+
+    }
 
     queryRest+='\r\n\t}catch(ParamNotFoundException e){'+
             	'\r\n\t  LOG.info("@Rest :: '+restname+' :: '+methodName+' :: ParamNotFoudException :  {} \", e.getMessage());'+
@@ -364,8 +396,8 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
 
       var queryFactory='\r\nfunction '+methodName+'(';
       queryFactory+=(params.length>0)?'params':'';
-      queryFactory+=')'+
-  						 '\r\n\tconsole.log(\''+serviceName+' :: '+methodName+' :: RUNNING'+
+      queryFactory+='){'+
+  						 '\r\n\tconsole.log(\''+serviceName+' :: '+methodName+' :: RUNNING\');'+
                '\r\n\t var deferred=$q.defer();'+
   						 '\r\n\t //SP: '+sp+
                '\r\n\t //Type : POST'+
@@ -373,10 +405,10 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
       queryFactory+=(params.length>0)?',params':'';
       queryFactory+=')'+
   						 '\r\n\t.then(function onSuccess(data){'+
-  						 '\r\n\t\tconsole.debug(\''+serviceName+' :: '+methodName+' :: SUCCESS'+
+  						 '\r\n\t\tconsole.debug(\''+serviceName+' :: '+methodName+' :: SUCCESS\');'+
   						 '\r\n\t\tdeferred.resolve(data.data);'+
                '\r\n\t},function onError(data,status){'+
-               '\r\n\t\tconsole.error(\''+serviceName+' :: '+methodName+' :: ERROR'+
+               '\r\n\t\tconsole.error(\''+serviceName+' :: '+methodName+' :: ERROR\');'+
                '\r\n\t\tconsole.debug("HTML STATUS: "+status);'+
                '\r\n\t\tconsole.error(data);'+
                '\r\n\t\t(status===0 || data.data==undefined)?deferred.reject(networkError):deferred.reject(data.data);'+
@@ -399,27 +431,68 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
 
 
     function buildController(service,servicename){
-    var controller='$scope.valuesTable.tableMessage.showAnimation=true;//se ingresa a la bandera interna de la animacion de la tabla'+
-                  '\r\n$scope.valuesTable.tableMessage.state.show=false;//se oculta el mensaje de error interno de la tabla'+
-                  '\r\n$scope.valuesTable.totalRows=0;//oculta la tabla'+
+      var controller='';
+      if(service.operacion=='t'){
+        controller='$scope.valuesTable.tableMessage.showAnimation=true;//se ingresa a la bandera interna de la animacion de la tabla'+
+                      '\r\n$scope.valuesTable.tableMessage.state.show=false;//se oculta el mensaje de error interno de la tabla'+
+                      '\r\n$scope.valuesTable.totalRows=0;//oculta la tabla'+
+                      '\r\n\r\n\t//SP: '+service.sp+'\r\n';
+      }else{
+        controller='$scope.message.showAnimation=true;//se ingresa a la bandera interna de la animacion'+
+                  '\r\n$scope.message.state.show=false;//se oculta el mensaje de error interno de la tabla'+
                   '\r\n\r\n\t//SP: '+service.sp+'\r\n';
+      }
+      if(service.params.length>0){
+          switch (service.operacion) {
+            case 'i':
+                controller+='\r\nvar params={keyTable:\'insert\',params:{';
+              break;
+            case 'u':
+                controller+='\r\nvar params={keyTable:\'update\',params:{';
+              break;
+            case 'd':
+                controller+='\r\nvar params={keyTable:\'delete\',params:{';
+              break;
+            default://tabla dinamica y cosnulta simple --t
+                controller+='\r\nvar params={keyTable:\''+service.constante+'\',params:{';
+          }
 
-    if(service.params.length>0){
-        controller+='\r\nvar params={keyTable:\'keytablename\',params:{';
-        for(var i in service.params){
-            controller+='\r\n\t'+addControllerParameter(service.params[i],i)
+          for(var i in service.params){
+              controller+='\r\n\t'+addControllerParameter(service.params[i],i)
+          }
+          controller+='\r\n\t}};\r\n'+servicename+'.'+getMethodName(service.url)+'(params)';
+      }else{
+        controller+='\r\n'+servicename+'.'+getMethodName(service.url)+'()';
+      }
+
+      switch (service.operacion) {
+        case 't':
+          controller+='\r\n\t.then(function (tableVO) {'+
+                    '\r\n\t  $scope.reloadTable=true;'+
+                    '\r\n\t},function(parentVO){'+
+                    '\r\n\t  $scope.valuesTable.tableMessage.showAnimation=false;'+
+                    '\r\n\t  $scope.valuesTable.tableMessage=parentVO;'+
+                    '\r\n\t});';
+          break;
+        case 's':
+          controller+='\r\n\t.then(function (tableVO) {'+
+                    '\r\n\t  $scope.message.showAnimation=false;'+
+                    '\r\n\t  $scope.data=tableVO;'+
+                    '\r\n\t},function(parentVO){'+
+                    '\r\n\t  $scope.message.showAnimation=false;'+
+                    '\r\n\t  $scope.message=parentVO;'+
+                    '\r\n\t});';
+          break;
+
+        default://insert/update/delete son iguales
+          controller+='\r\n\t.then(function (result) {'+
+                    '\r\n\t  $scope.message.showAnimation=false;'+
+                    '\r\n\t  $scope.message=result;'+
+                    '\r\n\t},function(parentVO){'+
+                    '\r\n\t  $scope.message.showAnimation=false;'+
+                    '\r\n\t  $scope.message=parentVO;'+
+                    '\r\n\t});';
         }
-        controller+='\r\n\t}};\r\n'+servicename+'.'+getMethodName(service.url)+'(params)';
-    }else{
-      controller+='\r\n'+servicename+'.'+getMethodName(service.url)+'()';
-    }
-
-      controller+='\r\n\t.then(function (tableVO) {'+
-                  '\r\n\t  $scope.reloadTable=true;'+
-                  '\r\n\t},function(parentVO){'+
-                  '\r\n\t  $scope.valuesTable.tableMessage.showAnimation=false;'+
-                  '\r\n\t  $scope.valuesTable.tableMessage=parentVO;'+
-                  '\r\n\t});';
 
     return controller;
     };
