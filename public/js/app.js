@@ -79,7 +79,7 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
           scope.$watch('services.length', function(newValue,oldValue) {
                      javalines=[];
                      for(var i in scope.services){
-                       javalines.push(buildServices.buildJavaService(scope.restname,scope.services[i].url,scope.services[i].constante,scope.services[i].sp,scope.services[i].params,,scope.services[i].operacion))
+                       javalines.push(buildServices.buildJavaService(scope.restname,scope.services[i].url,scope.services[i].constante,scope.services[i].sp,scope.services[i].params,scope.services[i].operacion))
                      }
                     scope.java =(scope.services!=undefined)?buildJavaCode(javalines,scope.restname):'';
               });
@@ -304,7 +304,7 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
 				// 			  "\r\n\tjava.sql.Time "+paramName+"2 = new java.sql.Time(mytime"+paramName+".getTime());";
 				break;
 			case "varchar":
-				strConvertion='.addValue("'+param.parameter.replace('@','')+'" , params.getParam("'+paramName+'"))"';
+				strConvertion='.addValue("'+param.parameter.replace('@','')+'" , params.getParam("'+paramName+'"))';
 				break;
 			default:
         console.debug('<< NO DATA TYPE FOUND >>');
@@ -349,9 +349,10 @@ app.controller('myCtrl',['$scope','dbService',function($scope,dbService) {
       case 's'://simple
         queryRest+=';\r\n\r\n\tTableVO table=storedProcedure.queryForTableVO( ISentenciasSQL.'+SPConstant+', inParamMap);'+
                   '\r\n\tcontainer.loadDataToContainer(params.getKeyTable(), table);'+
+                  '\r\n\ttable.buildJson();'+
                   '\r\n\tresult=table;//aplicamos herencia para desplegar el resultado';
         break;
-      case 'i'//insert,delete,update
+      case 'i'://insert,delete,update
         queryRest+=';\r\n\r\n\tresult=storedProcedure.queryforUpdateInsertDelete( ISentenciasSQL.'+SPConstant+', inParamMap);'+
                    '\r\n\tresult.getState().setMessage("Inserción exitosa");//cambiar leyenda en esta seccion si se desea otro mensaje'+
                    '\r\n\tresult.getState().setShow(true);//habilita la bandera para mostrar mensajes';
