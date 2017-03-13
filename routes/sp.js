@@ -5,9 +5,9 @@ var sql = require("mssql");
 var config = {
       user: 'usrpld',
       password: 'desarrollo?pld$JAVA',
-      server: '10.51.193.126',
-      port:'1433',
-      database: 'DESPLDSEGUROSMEX'
+      server: '10.80.112.70',
+      port:'1434',
+      database: 'PLDGESTORGLOBAL'
   };
 
 var spInfo=function(spname){
@@ -28,10 +28,10 @@ sql.connect(config, function (err) {
      new sql.Request()
        .input('spname',sql.VarChar(50),spname)
        //.output('output_parameter', sql.VarChar(50))
-       .execute('SEG_getSpParams').then(function(recordsets) {
-         console.log('SEG_getSpParams ['+spname+']');
+       .execute('GG_getSpParams').then(function(recordsets) {
+         console.log('GG_getSpParams ['+spname+']');
          console.log(recordsets);
-         if(recordsets[0].length>0){
+         if(recordsets[0]!=null){
             res.json(recordsets[0]);
          }else{
            res.status(404).json('No existe el store procedure solicitado');
